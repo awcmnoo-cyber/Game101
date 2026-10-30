@@ -1,0 +1,1246 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VIBE-RANT // GEN-Z TACTICAL FPS ⚡💀</title>
+  <!-- Three.js from unpkg for standard 3D web game compatibility -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Prompt:wght@300;400;600;800&display=swap');
+
+    :root {
+      --neon-pink: #FF007F;
+      --neon-cyan: #00F0FF;
+      --neon-yellow: #FFE600;
+      --neon-purple: #9D00FF;
+      --neon-green: #39FF14;
+      --dark-bg: #09090E;
+      --glass-bg: rgba(18, 18, 28, 0.7);
+      --glass-border: rgba(255, 255, 255, 0.15);
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: var(--dark-bg);
+      font-family: 'Orbitron', 'Prompt', sans-serif;
+      color: #fff;
+    }
+
+    #gameCanvas {
+      width: 100vw;
+      height: 100vh;
+      display: block;
+      cursor: crosshair;
+    }
+
+    /* UI Overlay */
+    #ui-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    /* Top HUD: Score & Round */
+    .top-bar {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 18px 24px;
+      gap: 30px;
+    }
+
+    .round-card {
+      background: var(--glass-bg);
+      backdrop-filter: blur(12px);
+      border: 2px solid var(--neon-pink);
+      box-shadow: 0 0 15px rgba(255, 0, 127, 0.4);
+      padding: 8px 28px;
+      border-radius: 12px;
+      text-align: center;
+      transform: skew(-10deg);
+    }
+
+    .round-score {
+      font-size: 28px;
+      font-weight: 900;
+      letter-spacing: 3px;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .score-blue { color: var(--neon-cyan); text-shadow: 0 0 10px var(--neon-cyan); }
+    .score-red { color: var(--neon-pink); text-shadow: 0 0 10px var(--neon-pink); }
+    .timer-text { font-size: 20px; color: var(--neon-yellow); text-shadow: 0 0 8px var(--neon-yellow); }
+
+    /* Killfeed */
+    .killfeed {
+      position: absolute;
+      top: 25px;
+      right: 25px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .kill-msg {
+      background: rgba(10, 10, 20, 0.85);
+      border-left: 4px solid var(--neon-yellow);
+      border-right: 4px solid var(--neon-pink);
+      padding: 6px 14px;
+      border-radius: 4px;
+      font-size: 13px;
+      letter-spacing: 1px;
+      animation: slideIn 0.3s ease-out forwards;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    }
+
+    @keyframes slideIn {
+      from { transform: translateX(50px); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    /* Crosshair */
+    #crosshair {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    .reticle-dot {
+      width: 4px;
+      height: 4px;
+      background: var(--neon-green);
+      box-shadow: 0 0 8px var(--neon-green);
+      border-radius: 50%;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    .reticle-line {
+      position: absolute;
+      background: var(--neon-cyan);
+      box-shadow: 0 0 6px var(--neon-cyan);
+    }
+    .reticle-line.top { width: 2px; height: 10px; top: -16px; left: -1px; }
+    .reticle-line.bottom { width: 2px; height: 10px; bottom: -16px; left: -1px; }
+    .reticle-line.left { width: 10px; height: 2px; left: -16px; top: -1px; }
+    .reticle-line.right { width: 10px; height: 2px; right: -16px; top: -1px; }
+
+    /* Bottom HUD: Player Status & Abilities */
+    .bottom-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      padding: 24px 36px;
+    }
+
+    .status-panel {
+      display: flex;
+      gap: 16px;
+      background: var(--glass-bg);
+      backdrop-filter: blur(14px);
+      padding: 16px 24px;
+      border-radius: 16px;
+      border: 1px solid var(--glass-border);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      transform: skew(-8deg);
+    }
+
+    .stat-item {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .stat-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.6);
+      letter-spacing: 1px;
+    }
+
+    .stat-value {
+      font-size: 32px;
+      font-weight: 900;
+    }
+
+    .hp-val { color: var(--neon-green); text-shadow: 0 0 12px var(--neon-green); }
+    .shield-val { color: var(--neon-cyan); text-shadow: 0 0 12px var(--neon-cyan); }
+    .ammo-val { color: var(--neon-yellow); text-shadow: 0 0 12px var(--neon-yellow); }
+
+    /* Skills Box */
+    .skills-container {
+      display: flex;
+      gap: 14px;
+      margin-bottom: 6px;
+    }
+
+    .skill-card {
+      width: 68px;
+      height: 72px;
+      background: rgba(20, 20, 35, 0.7);
+      border: 2px solid rgba(255,255,255,0.2);
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.2s ease;
+      transform: skew(-8deg);
+    }
+
+    .skill-card.ready {
+      border-color: var(--neon-purple);
+      box-shadow: 0 0 15px rgba(157, 0, 255, 0.4);
+    }
+
+    .skill-card.ult {
+      border-color: var(--neon-pink);
+      box-shadow: 0 0 18px rgba(255, 0, 127, 0.6);
+    }
+
+    .skill-card.cooldown {
+      filter: grayscale(1);
+      opacity: 0.5;
+    }
+
+    .skill-key {
+      position: absolute;
+      top: 3px;
+      left: 6px;
+      font-size: 10px;
+      font-weight: 800;
+      color: var(--neon-cyan);
+    }
+
+    .skill-icon {
+      font-size: 24px;
+      margin-top: 4px;
+    }
+
+    .skill-name {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      margin-top: 2px;
+      color: #ddd;
+    }
+
+    /* Screen Effects */
+    #damage-flash {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle, transparent 60%, rgba(255, 0, 80, 0.4) 100%);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s ease-out;
+    }
+
+    #kill-banner {
+      position: absolute;
+      top: 22%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.7);
+      background: linear-gradient(90deg, transparent, rgba(255, 0, 127, 0.8), rgba(0, 240, 255, 0.8), transparent);
+      padding: 12px 60px;
+      text-align: center;
+      font-size: 32px;
+      font-weight: 900;
+      letter-spacing: 6px;
+      text-transform: uppercase;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      text-shadow: 0 0 20px #fff;
+    }
+
+    /* Spike / Objective Status */
+    .spike-meter {
+      position: absolute;
+      bottom: 120px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+    .spike-bar-bg {
+      width: 260px;
+      height: 10px;
+      background: rgba(0,0,0,0.6);
+      border: 1px solid var(--neon-yellow);
+      border-radius: 5px;
+      overflow: hidden;
+    }
+    .spike-bar-fill {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, var(--neon-yellow), var(--neon-pink));
+      transition: width 0.05s linear;
+    }
+
+    /* Start / Pause Screen */
+    #start-modal {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(7, 7, 12, 0.88);
+      backdrop-filter: blur(10px);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      pointer-events: auto;
+      z-index: 99;
+    }
+
+    .modal-box {
+      background: var(--glass-bg);
+      border: 2px solid var(--neon-cyan);
+      box-shadow: 0 0 35px rgba(0, 240, 255, 0.35);
+      border-radius: 24px;
+      padding: 40px;
+      max-width: 620px;
+      text-align: center;
+      transform: skew(-2deg);
+    }
+
+    .vibe-title {
+      font-size: 48px;
+      font-weight: 900;
+      background: linear-gradient(45deg, var(--neon-pink), var(--neon-purple), var(--neon-cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 12px;
+      letter-spacing: 4px;
+      filter: drop-shadow(0 0 15px rgba(255,0,127,0.5));
+    }
+
+    .vibe-tag {
+      font-size: 14px;
+      color: var(--neon-yellow);
+      margin-bottom: 24px;
+      letter-spacing: 2px;
+    }
+
+    .controls-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      text-align: left;
+      background: rgba(0, 0, 0, 0.4);
+      padding: 16px 20px;
+      border-radius: 12px;
+      border: 1px solid var(--glass-border);
+      margin-bottom: 28px;
+      font-size: 13px;
+    }
+
+    .controls-grid span {
+      color: var(--neon-cyan);
+      font-weight: bold;
+    }
+
+    .play-btn {
+      background: linear-gradient(45deg, var(--neon-pink), var(--neon-purple));
+      border: none;
+      color: #fff;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 20px;
+      font-weight: 900;
+      padding: 16px 42px;
+      border-radius: 12px;
+      cursor: pointer;
+      box-shadow: 0 0 25px rgba(255, 0, 127, 0.6);
+      transition: transform 0.2s, box-shadow 0.2s;
+      letter-spacing: 2px;
+    }
+
+    .play-btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 35px rgba(0, 240, 255, 0.8);
+    }
+  </style>
+</head>
+<body>
+
+  <canvas id="gameCanvas"></canvas>
+
+  <div id="damage-flash"></div>
+  <div id="kill-banner">NO CAP! ACE! 💀🔥</div>
+
+  <div id="crosshair">
+    <div class="reticle-dot"></div>
+    <div class="reticle-line top"></div>
+    <div class="reticle-line bottom"></div>
+    <div class="reticle-line left"></div>
+    <div class="reticle-line right"></div>
+  </div>
+
+  <div id="ui-layer">
+    <!-- Top Bar: Scores & Time -->
+    <div class="top-bar">
+      <div class="round-card">
+        <div class="round-score">
+          <span class="score-blue" id="ui-blue-score">0</span>
+          <span>:</span>
+          <span class="score-red" id="ui-red-score">0</span>
+        </div>
+        <div class="timer-text" id="ui-round-timer">01:45</div>
+      </div>
+    </div>
+
+    <!-- Kill Feed -->
+    <div class="killfeed" id="killfeed"></div>
+
+    <!-- Objective progress bar (Plant/Defuse) -->
+    <div class="spike-meter" id="spike-meter">
+      <div style="font-size: 12px; color: var(--neon-yellow); font-weight: bold;" id="spike-label">PLANTING THE VIBE...</div>
+      <div class="spike-bar-bg">
+        <div class="spike-bar-fill" id="spike-progress"></div>
+      </div>
+    </div>
+
+    <!-- Bottom Bar: Status, Weapons, Abilities -->
+    <div class="bottom-bar">
+      <!-- Player HP / Shield -->
+      <div class="status-panel">
+        <div class="stat-item">
+          <span class="stat-label">HEALTH</span>
+          <span class="stat-value hp-val" id="ui-hp">100</span>
+        </div>
+        <div class="stat-item" style="border-left: 1px solid rgba(255,255,255,0.15); padding-left: 16px;">
+          <span class="stat-label">SHIELD</span>
+          <span class="stat-value shield-val" id="ui-shield">50</span>
+        </div>
+      </div>
+
+      <!-- Skills (Gen-Z Agent style) -->
+      <div class="skills-container">
+        <!-- C: Smoke -->
+        <div class="skill-card ready" id="skill-c">
+          <span class="skill-key">C</span>
+          <div class="skill-icon">☁️</div>
+          <span class="skill-name">SMOKE</span>
+        </div>
+        <!-- Q: Flashbang -->
+        <div class="skill-card ready" id="skill-q">
+          <span class="skill-key">Q</span>
+          <div class="skill-icon">⚡</div>
+          <span class="skill-name">FLASH</span>
+        </div>
+        <!-- E: Dash -->
+        <div class="skill-card ready" id="skill-e">
+          <span class="skill-key">E</span>
+          <div class="skill-icon">💨</div>
+          <span class="skill-name">RIZZ DASH</span>
+        </div>
+        <!-- X: Ultimate -->
+        <div class="skill-card ult ready" id="skill-x">
+          <span class="skill-key">X</span>
+          <div class="skill-icon">💀</div>
+          <span class="skill-name">BUSSIN ULT</span>
+        </div>
+      </div>
+
+      <!-- Ammo / Weapon Panel -->
+      <div class="status-panel">
+        <div class="stat-item" style="text-align: right;">
+          <span class="stat-label">VANDAL // 7.62</span>
+          <div class="stat-value ammo-val"><span id="ui-ammo">25</span><span style="font-size: 16px; color: rgba(255,255,255,0.5);"> / 75</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Start Screen Modal -->
+  <div id="start-modal">
+    <div class="modal-box">
+      <h1 class="vibe-title">VIBE-RANT ⚡</h1>
+      <p class="vibe-tag">GEN-Z TACTICAL WEB FPS • NO CAP EDITION</p>
+      
+      <div class="controls-grid">
+        <div><span>W, A, S, D</span> : เดิน (Movement)</div>
+        <div><span>MOUSE</span> : หันมุมมอง (Look Around)</div>
+        <div><span>CLICK ซ้าย</span> : ยิง Vandal (Shoot)</div>
+        <div><span>R</span> : รีโหลดกระสุน (Reload)</div>
+        <div><span>SPACE</span> : กระโดด (Jump)</div>
+        <div><span>SHIFT</span> : เดินเงียบ / ย่อง (Walk)</div>
+        <div><span>E</span> : Rizz Dash (พุ่งตัวหลบ)</div>
+        <div><span>Q</span> : Pop Flash (แฟลชตาบอด)</div>
+        <div><span>C</span> : Neon Smoke (สโมคบังตา)</div>
+        <div><span>X</span> : Bussin Ult (ระเบิดคลื่นพลัง)</div>
+      </div>
+
+      <button class="play-btn" id="start-btn">LOCK IN & PLAY 🔥</button>
+    </div>
+  </div>
+
+  <!-- Game Logic -->
+  <script>
+    // --- 1. SETUP THREE.JS ENGINE ---
+    const canvas = document.getElementById('gameCanvas');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0c0c16);
+    scene.fog = new THREE.FogExp2(0x0c0c16, 0.015);
+
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, powerPreference: 'high-performance' });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+    // --- 2. LIGHTING (Cyberpunk Gen-Z Style) ---
+    const ambientLight = new THREE.AmbientLight(0x22223b, 1.2);
+    scene.add(ambientLight);
+
+    const dirLight = new THREE.DirectionalLight(0xff007f, 1.0); // Neon Pink Sun
+    dirLight.position.set(20, 40, 20);
+    dirLight.castShadow = true;
+    dirLight.shadow.mapSize.width = 1024;
+    dirLight.shadow.mapSize.height = 1024;
+    scene.add(dirLight);
+
+    const cyanPoint = new THREE.PointLight(0x00f0ff, 2.0, 50);
+    cyanPoint.position.set(-10, 8, -10);
+    scene.add(cyanPoint);
+
+    // --- 3. MAP GENERATION (Tactical Site A & B Style) ---
+    const colliders = [];
+
+    // Floor (Grid Cyberpunk Aesthetic)
+    const floorGeo = new THREE.PlaneGeometry(120, 120, 60, 60);
+    const floorMat = new THREE.MeshStandardMaterial({ 
+      color: 0x12131f,
+      roughness: 0.6,
+      metalness: 0.2
+    });
+    const floor = new THREE.Mesh(floorGeo, floorMat);
+    floor.rotation.x = -Math.PI / 2;
+    floor.receiveShadow = true;
+    scene.add(floor);
+
+    // Grid Floor Overlay
+    const gridHelper = new THREE.GridHelper(120, 40, 0x00f0ff, 0x241838);
+    gridHelper.position.y = 0.02;
+    scene.add(gridHelper);
+
+    // Wall & Box Builder helper
+    function createBox(x, y, z, w, h, d, color = 0x20243b, emissive = 0x000000) {
+      const geo = new THREE.BoxGeometry(w, h, d);
+      const mat = new THREE.MeshStandardMaterial({ 
+        color: color, 
+        roughness: 0.4, 
+        metalness: 0.5,
+        emissive: emissive,
+        emissiveIntensity: 0.3
+      });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set(x, y + h / 2, z);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      scene.add(mesh);
+
+      // Add edge highlight (Valorant cel-shaded aesthetic)
+      const edgeGeo = new THREE.EdgesGeometry(geo);
+      const edgeMat = new THREE.LineBasicMaterial({ color: 0x00f0ff, linewidth: 2 });
+      const wireframe = new THREE.LineSegments(edgeGeo, edgeMat);
+      mesh.add(wireframe);
+
+      colliders.push({
+        minX: x - w / 2, maxX: x + w / 2,
+        minZ: z - d / 2, maxZ: z + d / 2,
+        minY: y, maxY: y + h
+      });
+      return mesh;
+    }
+
+    // Outer Map Boundaries
+    createBox(0, 0, -60, 120, 10, 2, 0x1b1429, 0x9d00ff); // Back wall
+    createBox(0, 0, 60, 120, 10, 2, 0x1b1429, 0x9d00ff);  // Front wall
+    createBox(-60, 0, 0, 2, 10, 120, 0x1b1429, 0x00f0ff); // Left wall
+    createBox(60, 0, 0, 2, 10, 120, 0x1b1429, 0x00f0ff);  // Right wall
+
+    // Tactical Chokepoints / Corridors & Sites
+    createBox(-15, 0, -10, 6, 8, 30, 0x272443);
+    createBox(15, 0, -10, 6, 8, 30, 0x272443);
+    createBox(0, 0, -35, 24, 7, 6, 0x272443);
+
+    // Crates / Radianite Boxes (Glowing Radianite green/orange)
+    createBox(-8, 0, 5, 4, 4, 4, 0x0f2420, 0x39ff14);
+    createBox(-4, 0, 5, 4, 4, 4, 0x0f2420, 0x39ff14);
+    createBox(-6, 4, 5, 3.5, 3.5, 3.5, 0x2e122b, 0xff007f);
+
+    createBox(18, 0, 15, 5, 5, 5, 0x0f2420, 0x39ff14);
+    createBox(0, 0, 18, 6, 3, 4, 0x1d2238);
+    createBox(20, 0, -25, 6, 6, 6, 0x2e122b, 0xff007f);
+    createBox(-22, 0, -28, 8, 5, 4, 0x1d2238);
+
+    // Site A & Site B Markers on Ground
+    function createSiteMarker(x, z, labelText, colorHex) {
+      const canvasText = document.createElement('canvas');
+      canvasText.width = 256;
+      canvasText.height = 256;
+      const ctx = canvasText.getContext('2d');
+      ctx.fillStyle = '#00000000';
+      ctx.fillRect(0, 0, 256, 256);
+      ctx.strokeStyle = colorHex;
+      ctx.lineWidth = 12;
+      ctx.strokeRect(20, 20, 216, 216);
+      ctx.fillStyle = colorHex;
+      ctx.font = 'bold 120px Orbitron, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(labelText, 128, 128);
+
+      const texture = new THREE.CanvasTexture(canvasText);
+      const mat = new THREE.MeshBasicMaterial({ map: texture, transparent: true, opacity: 0.85 });
+      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(16, 16), mat);
+      mesh.rotation.x = -Math.PI / 2;
+      mesh.position.set(x, 0.05, z);
+      scene.add(mesh);
+    }
+    createSiteMarker(-25, -40, 'A', '#00f0ff');
+    createSiteMarker(25, -40, 'B', '#ff007f');
+
+    // --- 4. FIRST PERSON PLAYER MODEL & WEAPON (VANDAL) ---
+    const player = {
+      pos: new THREE.Vector3(0, 2.2, 40),
+      vel: new THREE.Vector3(0, 0, 0),
+      yaw: 0,
+      pitch: 0,
+      hp: 100,
+      shield: 50,
+      ammo: 25,
+      maxAmmo: 25,
+      isReloading: false,
+      speed: 14,
+      onGround: true,
+      abilities: {
+        c: { ready: true, cd: 6000 },
+        q: { ready: true, cd: 8000 },
+        e: { ready: true, cd: 9000 },
+        x: { ready: true, cd: 18000 }
+      }
+    };
+
+    camera.position.copy(player.pos);
+
+    // Create First Person Gun (Vandal Skin: Gen-Z Neon Glitch)
+    const gunGroup = new THREE.Group();
+    const gunBodyGeo = new THREE.BoxGeometry(0.12, 0.16, 0.85);
+    const gunMat = new THREE.MeshStandardMaterial({ color: 0x11111a, metalness: 0.8, roughness: 0.2 });
+    const gunBody = new THREE.Mesh(gunBodyGeo, gunMat);
+    gunGroup.add(gunBody);
+
+    // Barrel & Glowing Accents
+    const barrelGeo = new THREE.CylinderGeometry(0.03, 0.03, 0.5, 12);
+    const barrelMat = new THREE.MeshStandardMaterial({ color: 0x333, metalness: 0.9, roughness: 0.1 });
+    const barrel = new THREE.Mesh(barrelGeo, barrelMat);
+    barrel.rotation.x = Math.PI / 2;
+    barrel.position.set(0, 0.03, -0.6);
+    gunGroup.add(barrel);
+
+    // Neon Glow Strip on Gun
+    const stripGeo = new THREE.BoxGeometry(0.13, 0.02, 0.7);
+    const stripMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff });
+    const strip = new THREE.Mesh(stripGeo, stripMat);
+    strip.position.set(0, 0.08, -0.05);
+    gunGroup.add(strip);
+
+    const magGeo = new THREE.BoxGeometry(0.08, 0.25, 0.15);
+    const magMat = new THREE.MeshStandardMaterial({ color: 0xff007f });
+    const mag = new THREE.Mesh(magGeo, magMat);
+    mag.position.set(0, -0.15, 0.05);
+    mag.rotation.x = 0.2;
+    gunGroup.add(mag);
+
+    gunGroup.position.set(0.35, -0.28, -0.65);
+    camera.add(gunGroup);
+    scene.add(camera);
+
+    // Muzzle Flash
+    const flashLight = new THREE.PointLight(0xffe600, 0, 10);
+    flashLight.position.set(0.35, -0.25, -1.3);
+    camera.add(flashLight);
+
+    // --- 5. ENEMY BOTS (Gen-Z Holographic Opponents) ---
+    const enemies = [];
+    const enemyGeo = new THREE.CylinderGeometry(0.65, 0.65, 2.4, 16);
+    const enemyHeadGeo = new THREE.SphereGeometry(0.4, 16, 16);
+
+    function spawnEnemy(x, z, name) {
+      const group = new THREE.Group();
+      
+      const mat = new THREE.MeshStandardMaterial({ 
+        color: 0xff0055, 
+        emissive: 0x660022, 
+        metalness: 0.7, 
+        roughness: 0.3 
+      });
+      const body = new THREE.Mesh(enemyGeo, mat);
+      body.position.y = 1.2;
+      body.castShadow = true;
+      group.add(body);
+
+      // Head (Critical headshot zone)
+      const headMat = new THREE.MeshStandardMaterial({ 
+        color: 0xffe600, 
+        emissive: 0x554400,
+        metalness: 0.8 
+      });
+      const head = new THREE.Mesh(enemyHeadGeo, headMat);
+      head.position.y = 2.4;
+      head.castShadow = true;
+      group.add(head);
+
+      // Hologram glowing visor
+      const visorGeo = new THREE.BoxGeometry(0.5, 0.15, 0.3);
+      const visorMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff });
+      const visor = new THREE.Mesh(visorGeo, visorMat);
+      visor.position.set(0, 2.45, -0.3);
+      group.add(visor);
+
+      group.position.set(x, 0, z);
+      scene.add(group);
+
+      enemies.push({
+        mesh: group,
+        headMesh: head,
+        bodyMesh: body,
+        name: name,
+        hp: 100,
+        maxHp: 100,
+        alive: true,
+        strafeTimer: Math.random() * 2,
+        strafeDir: 1,
+        shootCooldown: 1.2 + Math.random() * 1.5,
+        targetPos: new THREE.Vector3(x, 0, z)
+      });
+    }
+
+    // Spawn 4 Tactical Enemy Bots
+    spawnEnemy(-25, -35, "REYNA_MAIN");
+    spawnEnemy(-5, -28, "JETT_CHAD");
+    spawnEnemy(20, -32, "OMEN_GHOST");
+    spawnEnemy(12, 0, "CHAMBER_VIBE");
+
+    // --- 6. PARTICLES & BULLET SYSTEM ---
+    const bullets = [];
+    const particlePool = [];
+
+    function triggerSparks(pos, colorHex = 0x00f0ff, count = 10) {
+      for (let i = 0; i < count; i++) {
+        const pGeo = new THREE.BoxGeometry(0.06, 0.06, 0.06);
+        const pMat = new THREE.MeshBasicMaterial({ color: colorHex });
+        const p = new THREE.Mesh(pGeo, pMat);
+        p.position.copy(pos);
+        scene.add(p);
+        particlePool.push({
+          mesh: p,
+          vel: new THREE.Vector3(
+            (Math.random() - 0.5) * 8,
+            (Math.random() * 6) + 1,
+            (Math.random() - 0.5) * 8
+          ),
+          life: 0.4
+        });
+      }
+    }
+
+    // --- 7. CONTROLS & POINTER LOCK ---
+    const keys = {};
+    let isLocked = false;
+
+    document.getElementById('start-btn').addEventListener('click', () => {
+      document.getElementById('start-modal').style.display = 'none';
+      canvas.requestPointerLock();
+    });
+
+    document.addEventListener('pointerlockchange', () => {
+      isLocked = (document.pointerLockElement === canvas);
+    });
+
+    window.addEventListener('keydown', (e) => {
+      keys[e.code] = true;
+      if (e.code === 'KeyR') reloadWeapon();
+      if (e.code === 'KeyE') useAbility('e');
+      if (e.code === 'KeyQ') useAbility('q');
+      if (e.code === 'KeyC') useAbility('c');
+      if (e.code === 'KeyX') useAbility('x');
+    });
+
+    window.addEventListener('keyup', (e) => {
+      keys[e.code] = false;
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isLocked) return;
+      const sensitivity = 0.0022;
+      player.yaw -= e.movementX * sensitivity;
+      player.pitch -= e.movementY * sensitivity;
+      player.pitch = Math.max(-Math.PI / 2.1, Math.min(Math.PI / 2.1, player.pitch));
+    });
+
+    window.addEventListener('mousedown', (e) => {
+      if (e.button === 0 && isLocked) {
+        shootWeapon();
+      }
+    });
+
+    // --- 8. COMBAT & WEAPON ACTIONS ---
+    let lastShootTime = 0;
+    const shootRate = 120; // ms
+
+    function shootWeapon() {
+      const now = performance.now();
+      if (now - lastShootTime < shootRate) return;
+      if (player.ammo <= 0 || player.isReloading) {
+        reloadWeapon();
+        return;
+      }
+
+      lastShootTime = now;
+      player.ammo--;
+      updateUI();
+
+      // Audio Synthesis (Procedural Retro Synth Gunshot)
+      playSynthShot();
+
+      // Recoil & Gun Kick animation
+      gunGroup.position.z = -0.52;
+      gunGroup.position.y = -0.24;
+      gunGroup.rotation.x = 0.12;
+      flashLight.intensity = 3.5;
+      setTimeout(() => { flashLight.intensity = 0; }, 40);
+
+      // Raycast Shooting (Precision Hitscan)
+      const raycaster = new THREE.Raycaster();
+      raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+
+      // Test against enemies
+      let hitSomething = false;
+      enemies.forEach((enemy) => {
+        if (!enemy.alive) return;
+
+        // Check head first (Headshot)
+        const headHits = raycaster.intersectObject(enemy.headMesh);
+        if (headHits.length > 0) {
+          hitSomething = true;
+          damageEnemy(enemy, 160, true, headHits[0].point);
+          return;
+        }
+
+        // Check body
+        const bodyHits = raycaster.intersectObject(enemy.bodyMesh);
+        if (bodyHits.length > 0) {
+          hitSomething = true;
+          damageEnemy(enemy, 40, false, bodyHits[0].point);
+          return;
+        }
+      });
+
+      // Hit Map walls / environment
+      if (!hitSomething) {
+        const worldObjects = colliders.map(c => {
+          return scene.children.find(m => m.isMesh && m.position.y > 0);
+        }).filter(Boolean);
+        const wallHits = raycaster.intersectObjects(scene.children);
+        if (wallHits.length > 0) {
+          const hit = wallHits[0];
+          triggerSparks(hit.point, 0x00f0ff, 6);
+        }
+      }
+    }
+
+    function reloadWeapon() {
+      if (player.isReloading || player.ammo === player.maxAmmo) return;
+      player.isReloading = true;
+      document.getElementById('ui-ammo').innerText = '...';
+
+      // Mag drop recoil anim
+      gunGroup.position.y = -0.45;
+      gunGroup.rotation.z = -0.3;
+
+      setTimeout(() => {
+        player.ammo = player.maxAmmo;
+        player.isReloading = false;
+        gunGroup.position.y = -0.28;
+        gunGroup.rotation.z = 0;
+        updateUI();
+      }, 1400);
+    }
+
+    function damageEnemy(enemy, dmg, isHeadshot, hitPos) {
+      enemy.hp -= dmg;
+      triggerSparks(hitPos, isHeadshot ? 0xffe600 : 0xff0055, isHeadshot ? 25 : 12);
+
+      if (enemy.hp <= 0 && enemy.alive) {
+        enemy.alive = false;
+        scene.remove(enemy.mesh);
+        addKillFeed(isHeadshot ? "CRACKED HEADSHOT! ⚡" : "ELIMINATED! 💀", enemy.name);
+        checkRoundState();
+      }
+    }
+
+    function addKillFeed(action, victim) {
+      const feed = document.getElementById('killfeed');
+      const item = document.createElement('div');
+      item.className = 'kill-msg';
+      item.innerHTML = `<span style="color:var(--neon-cyan); font-weight:bold;">YOU [VANDAL]</span> <span style="color:var(--neon-yellow);">${action}</span> <span style="color:var(--neon-pink); font-weight:bold;">${victim}</span>`;
+      feed.appendChild(item);
+      setTimeout(() => item.remove(), 4000);
+
+      // Banner show
+      const banner = document.getElementById('kill-banner');
+      banner.style.opacity = '1';
+      banner.style.transform = 'translate(-50%, -50%) scale(1.1)';
+      setTimeout(() => {
+        banner.style.opacity = '0';
+        banner.style.transform = 'translate(-50%, -50%) scale(0.7)';
+      }, 1200);
+    }
+
+    // --- 9. AGENT ABILITIES (Gen-Z Valorant Kit) ---
+    function useAbility(type) {
+      const ab = player.abilities[type];
+      if (!ab || !ab.ready) return;
+
+      ab.ready = false;
+      const card = document.getElementById(`skill-${type}`);
+      card.classList.remove('ready');
+      card.classList.add('cooldown');
+
+      if (type === 'e') {
+        // RIZZ DASH: Burst forward
+        const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), player.yaw);
+        player.vel.add(forward.multiplyScalar(42));
+        triggerSparks(player.pos, 0x00f0ff, 30);
+      } else if (type === 'q') {
+        // POP FLASH: Blind enemy bots in sight
+        flashScreen(0xffffff, 0.9);
+        enemies.forEach(e => {
+          if (e.alive) e.shootCooldown += 3.5; // Temporarily blind bot
+        });
+      } else if (type === 'c') {
+        // NEON SMOKE: Create dome smoke cloud
+        const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), player.yaw);
+        const smokePos = player.pos.clone().add(forward.multiplyScalar(12));
+        smokePos.y = 2.5;
+
+        const smokeGeo = new THREE.SphereGeometry(6, 24, 24);
+        const smokeMat = new THREE.MeshStandardMaterial({ 
+          color: 0x9d00ff, 
+          transparent: true, 
+          opacity: 0.75, 
+          roughness: 0.9 
+        });
+        const smokeSphere = new THREE.Mesh(smokeGeo, smokeMat);
+        smokeSphere.position.copy(smokePos);
+        scene.add(smokeSphere);
+        setTimeout(() => scene.remove(smokeSphere), 8000);
+      } else if (type === 'x') {
+        // BUSSIN ULT: Area shockwave clearing nearby bots
+        flashScreen(0xff007f, 0.7);
+        triggerSparks(player.pos, 0xff007f, 60);
+        enemies.forEach(e => {
+          if (e.alive && e.mesh.position.distanceTo(player.pos) < 30) {
+            damageEnemy(e, 100, false, e.mesh.position);
+          }
+        });
+      }
+
+      setTimeout(() => {
+        ab.ready = true;
+        card.classList.remove('cooldown');
+        card.classList.add('ready');
+      }, ab.cd);
+    }
+
+    function flashScreen(colorHex, opacity) {
+      const flash = document.getElementById('damage-flash');
+      flash.style.background = '#fff';
+      flash.style.opacity = opacity;
+      setTimeout(() => {
+        flash.style.opacity = 0;
+        flash.style.background = 'radial-gradient(circle, transparent 60%, rgba(255, 0, 80, 0.4) 100%)';
+      }, 250);
+    }
+
+    function playerTakeDamage(amount) {
+      if (player.shield > 0) {
+        player.shield -= amount;
+        if (player.shield < 0) {
+          player.hp += player.shield;
+          player.shield = 0;
+        }
+      } else {
+        player.hp -= amount;
+      }
+
+      document.getElementById('damage-flash').style.opacity = '1';
+      setTimeout(() => { document.getElementById('damage-flash').style.opacity = '0'; }, 180);
+
+      if (player.hp <= 0) {
+        player.hp = 0;
+        alert("💀 YOU GOT CLIPPED! GG NO RE. Press OK to Respawn.");
+        resetRound();
+      }
+      updateUI();
+    }
+
+    // --- 10. BOT AI BEHAVIOR & MOVEMENT ---
+    function updateBots(dt) {
+      enemies.forEach(e => {
+        if (!e.alive) return;
+
+        // Strafe Left & Right
+        e.strafeTimer -= dt;
+        if (e.strafeTimer <= 0) {
+          e.strafeDir *= -1;
+          e.strafeTimer = 1.2 + Math.random() * 1.5;
+        }
+
+        e.mesh.position.x += e.strafeDir * dt * 3.5;
+        // Keep within arena
+        e.mesh.position.x = Math.max(-45, Math.min(45, e.mesh.position.x));
+
+        // Look at player
+        e.mesh.lookAt(player.pos.x, 0, player.pos.z);
+
+        // Distance to player
+        const dist = e.mesh.position.distanceTo(player.pos);
+        if (dist < 45) {
+          e.shootCooldown -= dt;
+          if (e.shootCooldown <= 0) {
+            e.shootCooldown = 1.5 + Math.random() * 1.2;
+            // Bot shoots player (with spread / accuracy based on distance)
+            if (Math.random() > 0.45) {
+              playerTakeDamage(18);
+            }
+          }
+        }
+      });
+    }
+
+    let blueScore = 0;
+    let redScore = 0;
+
+    function checkRoundState() {
+      const allDead = enemies.every(e => !e.alive);
+      if (allDead) {
+        blueScore++;
+        document.getElementById('ui-blue-score').innerText = blueScore;
+        setTimeout(() => {
+          alert("🔥 ROUND WON! SHEESH CLEAN SWEEP! Next Round Starting...");
+          resetRound();
+        }, 1200);
+      }
+    }
+
+    function resetRound() {
+      player.hp = 100;
+      player.shield = 50;
+      player.ammo = player.maxAmmo;
+      player.pos.set(0, 2.2, 40);
+      player.vel.set(0, 0, 0);
+
+      // Respawn Bots
+      enemies.forEach((e, idx) => {
+        e.alive = true;
+        e.hp = 100;
+        if (!e.mesh.parent) scene.add(e.mesh);
+        const spawns = [
+          [-25, -35], [-5, -28], [20, -32], [12, 0]
+        ];
+        e.mesh.position.set(spawns[idx][0], 0, spawns[idx][1]);
+      });
+      updateUI();
+    }
+
+    // --- 11. WEB AUDIO SYNTHESIZER (No external audio files needed!) ---
+    let audioCtx = null;
+    function playSynthShot() {
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(360, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 0.12);
+
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.12);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.14);
+      } catch (err) {}
+    }
+
+    // --- 12. PHYSICS, MOVEMENT & COLLISION ---
+    function checkWallCollision(newPos) {
+      for (let c of colliders) {
+        const radius = 0.8;
+        if (newPos.x + radius > c.minX && newPos.x - radius < c.maxX &&
+            newPos.z + radius > c.minZ && newPos.z - radius < c.maxZ) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    let clock = new THREE.Clock();
+
+    function updatePlayer(dt) {
+      // Movement Directions
+      const moveDir = new THREE.Vector3();
+      if (keys['KeyW']) moveDir.z -= 1;
+      if (keys['KeyS']) moveDir.z += 1;
+      if (keys['KeyA']) moveDir.x -= 1;
+      if (keys['KeyD']) moveDir.x += 1;
+      moveDir.normalize();
+
+      // Sneak / Walk with Shift
+      const currentSpeed = keys['ShiftLeft'] ? player.speed * 0.5 : player.speed;
+
+      // Apply Yaw rotation to movement
+      moveDir.applyAxisAngle(new THREE.Vector3(0, 1, 0), player.yaw);
+
+      // Horizontal Velocity with damping
+      player.vel.x = moveDir.x * currentSpeed;
+      player.vel.z = moveDir.z * currentSpeed;
+
+      // Jump & Gravity
+      if (keys['Space'] && player.onGround) {
+        player.vel.y = 9.5;
+        player.onGround = false;
+      }
+      player.vel.y -= 26 * dt; // Gravity
+
+      // Next Position test
+      const nextX = player.pos.x + player.vel.x * dt;
+      const nextZ = player.pos.z + player.vel.z * dt;
+      const nextY = player.pos.y + player.vel.y * dt;
+
+      // Collision X
+      if (!checkWallCollision(new THREE.Vector3(nextX, player.pos.y, player.pos.z))) {
+        player.pos.x = nextX;
+      }
+      // Collision Z
+      if (!checkWallCollision(new THREE.Vector3(player.pos.x, player.pos.y, nextZ))) {
+        player.pos.z = nextZ;
+      }
+      // Ground / Y
+      if (nextY <= 2.2) {
+        player.pos.y = 2.2;
+        player.vel.y = 0;
+        player.onGround = true;
+      } else {
+        player.pos.y = nextY;
+      }
+
+      // Gun Bobbing while walking
+      const isMoving = (keys['KeyW'] || keys['KeyS'] || keys['KeyA'] || keys['KeyD']) && player.onGround;
+      if (isMoving) {
+        const bob = Math.sin(performance.now() * 0.012) * 0.018;
+        gunGroup.position.y = -0.28 + bob;
+        gunGroup.position.x = 0.35 + Math.cos(performance.now() * 0.006) * 0.012;
+      } else {
+        gunGroup.position.y += (-0.28 - gunGroup.position.y) * 0.1;
+        gunGroup.position.x += (0.35 - gunGroup.position.x) * 0.1;
+      }
+      // Gun Recoil Recovery
+      gunGroup.position.z += (-0.65 - gunGroup.position.z) * 0.15;
+      gunGroup.rotation.x += (0 - gunGroup.rotation.x) * 0.15;
+
+      // Update Three.js Camera Matrix
+      camera.position.copy(player.pos);
+      camera.rotation.order = 'YXZ';
+      camera.rotation.y = player.yaw;
+      camera.rotation.x = player.pitch;
+    }
+
+    function updateParticles(dt) {
+      for (let i = particlePool.length - 1; i >= 0; i--) {
+        const p = particlePool[i];
+        p.life -= dt;
+        p.mesh.position.addScaledVector(p.vel, dt);
+        p.vel.y -= 12 * dt; // Gravity on sparks
+        if (p.life <= 0) {
+          scene.remove(p.mesh);
+          particlePool.splice(i, 1);
+        }
+      }
+    }
+
+    function updateUI() {
+      document.getElementById('ui-hp').innerText = Math.max(0, Math.round(player.hp));
+      document.getElementById('ui-shield').innerText = Math.max(0, Math.round(player.shield));
+      document.getElementById('ui-ammo').innerText = player.ammo;
+    }
+
+    // --- 13. MAIN GAME LOOP ---
+    function animate() {
+      requestAnimationFrame(animate);
+      const dt = Math.min(clock.getDelta(), 0.1);
+
+      if (isLocked) {
+        updatePlayer(dt);
+        updateBots(dt);
+        updateParticles(dt);
+      }
+
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    // Resize Handler
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>
